@@ -2,184 +2,148 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Single-Elimination Turnier</title>
+<title>Turnierplan</title>
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
-        padding: 20px;
-    }
-    h1, h2 {
-        text-align: center;
-    }
-    .setup {
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    input, button {
-        padding: 8px;
-        margin: 5px;
-        font-size: 14px;
-    }
-    .names {
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .bracket {
-        display: flex;
-        justify-content: center;
-        gap: 40px;
-        overflow-x: auto;
-    }
-    .round {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
-    .match {
-        background: white;
-        border: 2px solid #333;
-        padding: 10px;
-        cursor: pointer;
-        text-align: center;
-        min-width: 140px;
-    }
-    .match:hover {
-        background: #e0e0e0;
-    }
-    .winner {
-        background: #b6ffb6;
-        border-color: green;
-        font-weight: bold;
-    }
-    .bye {
-        background: #ddd;
-        cursor: default;
-    }
-    .reset {
-        text-align: center;
-        margin-top: 30px;
-    }
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+
+.hidden { display: none; }
+
+button {
+  padding: 8px 12px;
+  margin: 5px 0;
+  cursor: pointer;
+}
+
+.selected {
+  background: #4caf50;
+  color: white;
+}
+
+.bracket {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+}
+
+.side {
+  width: 45%;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.match {
+  border-left: 2px solid black;
+  padding-left: 20px;
+}
+
+.player {
+  display: block;
+  width: 150px;
+}
 </style>
 </head>
 <body>
 
-<h1>Single-Elimination Turnier</h1>
-
-<div class="setup">
-    <label>Teilnehmeranzahl:</label>
-    <input type="number" id="count" min="2">
-    <button onclick="createNameInputs()">Weiter</button>
+<!-- STARTSEITE -->
+<div id="start">
+  <h2>Spieleranzahl</h2>
+  <input type="number" id="playerCount" min="2" step="2" value="8">
+  <br>
+  <button onclick="goToNames()">Weiter</button>
 </div>
 
-<div class="names" id="names"></div>
+<!-- NAMENSEINGABE -->
+<div id="names" class="hidden">
+  <h2>Spielernamen</h2>
+  <div id="nameInputs"></div>
+  <button onclick="startTournament()">Turnier starten</button>
+</div>
 
-<div class="bracket" id="bracket"></div>
-
-<div class="reset">
-    <button onclick="location.reload()">Reset / Neustart</button>
+<!-- TURNIER -->
+<div id="tournament" class="hidden">
+  <h2>Turnierplan</h2>
+  <div class="bracket" id="bracket"></div>
 </div>
 
 <script>
-let rounds = [];
+let players = [];
 
-function createNameInputs() {
-    const count = parseInt(document.getElementById("count").value);
-    if (!count || count < 2) return;
+function goToNames() {
+  const count = document.getElementById("playerCount").value;
+  if (count < 2 || count % 2 !== 0) {
+    alert("Bitte gerade Zahl ≥ 2");
+    return;
+  }
 
-    const container = document.getElementById("names");
-    container.innerHTML = "<h2>Namen eingeben</h2>";
+  document.getElementById("start").classList.add("hidden");
+  document.getElementById("names").classList.remove("hidden");
 
-    for (let i = 0; i < count; i++) {
-        container.innerHTML += `<input placeholder="Teilnehmer ${i + 1}" id="name${i}"><br>`;
-    }
-    container.innerHTML += `<br><button onclick="startTournament(${count})">Turnier starten</button>`;
+  const container = document.getElementById("nameInputs");
+  container.innerHTML = "";
+
+  for (let i = 0; i < count; i++) {
+    const input = document.createElement("input");
+    input.placeholder = "Spieler " + (i + 1);
+    container.appendChild(input);
+    container.appendChild(document.createElement("br"));
+  }
 }
 
-function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
+function startTournament() {
+  const inputs = document.querySelectorAll("#nameInputs input");
+  players = Array.from(inputs).map(i => i.value || "Spieler");
+
+  document.getElementById("names").classList.add("hidden");
+  document.getElementById("tournament").classList.remove("hidden");
+
+  createBracket(players);
 }
 
-function startTournament(count) {
-    let players = [];
-    for (let i = 0; i < count; i++) {
-        const name = document.getElementById(`name${i}`).value || `Spieler ${i + 1}`;
-        players.push(name);
-    }
+function createBracket(players) {
+  const bracket = document.getElementById("bracket");
+  bracket.innerHTML = "";
 
-    shuffle(players);
+  const half = players.length / 2;
+  const leftPlayers = players.slice(0, half);
+  const rightPlayers = players.slice(half);
 
-    // nächste 2er-Potenz
-    let size = 1;
-    while (size < players.length) size *= 2;
-
-    while (players.length < size) {
-        players.push(null); // Bye
-    }
-
-    rounds = [];
-    rounds.push(players.map(p => ({ name: p, winner: false })));
-
-    drawBracket();
+  bracket.appendChild(createSide(leftPlayers));
+  bracket.appendChild(createSide(rightPlayers));
 }
 
-function drawBracket() {
-    const bracket = document.getElementById("bracket");
-    bracket.innerHTML = "";
+function createSide(players) {
+  const side = document.createElement("div");
+  side.className = "side";
 
-    for (let r = 0; r < rounds.length; r++) {
-        const roundDiv = document.createElement("div");
-        roundDiv.className = "round";
+  for (let i = 0; i < players.length; i += 2) {
+    const match = document.createElement("div");
+    match.className = "match";
 
-        for (let i = 0; i < rounds[r].length; i += 2) {
-            const p1 = rounds[r][i];
-            const p2 = rounds[r][i + 1];
+    const p1 = createPlayerButton(players[i], match);
+    const p2 = createPlayerButton(players[i + 1], match);
 
-            const match = document.createElement("div");
-            match.className = "match";
-
-            if (p1.name && !p2.name) {
-                match.textContent = p1.name + " (Freilos)";
-                match.classList.add("bye");
-                advance(r, i);
-            } else if (!p1.name && p2.name) {
-                match.textContent = p2.name + " (Freilos)";
-                match.classList.add("bye");
-                advance(r, i + 1);
-            } else if (!p1.name && !p2.name) {
-                match.textContent = "—";
-                match.classList.add("bye");
-            } else {
-                match.innerHTML = `${p1.name}<br>vs<br>${p2.name}`;
-                match.onclick = () => advance(r, i);
-            }
-
-            roundDiv.appendChild(match);
-        }
-        bracket.appendChild(roundDiv);
-    }
+    match.appendChild(p1);
+    match.appendChild(p2);
+    side.appendChild(match);
+  }
+  return side;
 }
 
-function advance(roundIndex, playerIndex) {
-    const player = rounds[roundIndex][playerIndex];
-    if (!player || player.winner) return;
+function createPlayerButton(name, match) {
+  const btn = document.createElement("button");
+  btn.className = "player";
+  btn.textContent = name;
 
-    if (!rounds[roundIndex + 1]) {
-        rounds[roundIndex + 1] = [];
-    }
+  btn.onclick = () => {
+    match.querySelectorAll("button").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+  };
 
-    player.winner = true;
-    rounds[roundIndex + 1].push({ name: player.name, winner: false });
-
-    drawBracket();
-
-    // Sieger anzeigen
-    if (rounds[roundIndex + 1].length === 1 && rounds[roundIndex].length === 2) {
-        alert("🏆 Sieger: " + player.name);
-    }
+  return btn;
 }
 </script>
 
